@@ -29,6 +29,8 @@ def lcm(ab):
 if __name__ == '__main__':
     print('---------- Start ----------')
 
+    img_count = 0
+
     ### load arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, required=True)
@@ -86,7 +88,8 @@ if __name__ == '__main__':
 
     # For multi-task model, only load one branch using filter.
     # Optional values of filter_list: 'x2', 'x3', 'x4', 'g15', 'g25', 'g50', 'dr_L', 'dr_H'.
-    load_model_filter_list(model, args.model, filter_list=[])
+    # NOTE TO SELF disable cpu=True if training (probably)
+    load_model_filter_list(model, args.model, filter_list=[], cpu=True)
     # load_model_filter_list(model, args.model, filter_list=['x3', 'x4'])
 
 
@@ -131,7 +134,7 @@ if __name__ == '__main__':
 
         # for batch=1
         for idx, lq_path in enumerate(ipath_l):
-            img_name = f.split('/')[-1]
+            img_name = lq_path.split('/')[-1]
             lq_img = cv2.imread(lq_path, cv2.IMREAD_COLOR).astype(np.float32)
             if args.noise_level:
                 noise = np.random.normal(loc=0.0, scale=args.noise_level, size=lq_img.shape)
@@ -162,8 +165,10 @@ if __name__ == '__main__':
             for pred, s, h_old, w_old in zip(preds, scales, h_olds, w_olds):
                 outputs.append(tensor2img(pred[..., :h_old * s, : w_old * s]))
 
+            
             if args.output:
                 cv2.imwrite(os.path.join(args.output, img_name), outputs[0])
+                
 
             if args.gt:
                 gts = [cv2.imread(gpath_l[idx]), cv2.IMREAD_COLOR]

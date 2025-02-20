@@ -130,3 +130,7 @@ dmypy.json
 
 # models
 .pth
+
+pretrained
+output
+benchmark
