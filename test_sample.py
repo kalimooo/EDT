@@ -29,8 +29,6 @@ def lcm(ab):
 if __name__ == '__main__':
     print('---------- Start ----------')
 
-    img_count = 0
-
     ### load arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, required=True)
@@ -165,10 +163,8 @@ if __name__ == '__main__':
             for pred, s, h_old, w_old in zip(preds, scales, h_olds, w_olds):
                 outputs.append(tensor2img(pred[..., :h_old * s, : w_old * s]))
 
-            
             if args.output:
                 cv2.imwrite(os.path.join(args.output, img_name), outputs[0])
-                
 
             if args.gt:
                 gts = [cv2.imread(gpath_l[idx]), cv2.IMREAD_COLOR]
