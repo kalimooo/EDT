@@ -134,3 +134,7 @@ dmypy.json
 pretrained
 output
 benchmark
+insect_brain
+training_data
+test_pretrained_model
+fine_tuned_output

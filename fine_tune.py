@@ -53,7 +53,7 @@ def main():
     model = model.to(device)
 
     # Load pre-trained weights. For SR x4, we use the filter ['x4'].
-    load_model_filter_list(model, args.model, filter_list=['x4'], cpu=True)
+    load_model_filter_list(model, args.model, filter_list=[], cpu=True)
 
     # Prepare optimizer and loss function
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
