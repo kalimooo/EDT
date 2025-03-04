@@ -12,7 +12,10 @@ from utils.model_opr import load_model, load_model_filter_list
 
 
 def read_image_to_tensor(ipath):
-    img = cv2.imread(ipath, cv2.IMREAD_COLOR)
+    #img = cv2.imread(ipath, cv2.IMREAD_COLOR)
+    img = cv2.imread(ipath, cv2.IMREAD_GRAYSCALE)
+    img = np.stack([img, img, img], axis=-1)
+    
     img = np.transpose(img[:, :, ::-1], (2, 0, 1)).astype(np.float32) / 255.0
     img = torch.from_numpy(img).float().unsqueeze(0)
 
