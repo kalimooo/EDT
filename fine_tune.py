@@ -88,7 +88,6 @@ def main():
             lr_path = os.path.join(lr_dir, "lr-" + filename)
             hr_path = os.path.join(hr_dir, "hr-" + filename)
             lr_img = read_image_to_tensor(lr_path).to(device)
-            print(f"LR image range: min {lr_img.min().item()}, max: {lr_img.max().item()}")
             hr_img = read_image_to_tensor(hr_path).to(device)
 
             optimizer.zero_grad()
