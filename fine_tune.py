@@ -6,6 +6,8 @@ import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn as nn
+from pytorch_msssim import ssim
+
 
 from utils.common import scandir
 from utils.model_opr import load_model_filter_list
@@ -13,11 +15,14 @@ from utils.modules.edt import Network
 
 # python fine_tune.py --config configs/SRx4_EDTB_ImageNet200K.py --model pretrained/SRx4_EDTB_ImageNet200K.pth --data data --output fine_tuned_output --epochs 10 --lr 1e-4
 
+def ssim_loss(pred, gt):
+    return 1 - ssim(pred, gt, data_range=1.0)
+
 def read_image_to_tensor(ipath):
     # NOTE this might not work? idk good to keep in mind
     img = cv2.imread(ipath, cv2.IMREAD_GRAYSCALE)
     img = np.stack([img, img, img], axis=-1) # shape becomes (H, W, 3)
-    
+
     # Convert BGR to RGB, transpose to (C,H,W), normalize and add batch dimension.
     img = np.transpose(img[:, :, ::-1], (2, 0, 1)).astype(np.float32) / 255.0
     img = torch.from_numpy(img).unsqueeze(0)
@@ -57,7 +62,7 @@ def main():
 
     # Prepare optimizer and loss function
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    criterion = nn.MSELoss()
+    criterion = ssim_loss
 
     # Setup directories for LR and HR images.
     lr_dir = os.path.join(args.data, "LR")
@@ -65,8 +70,8 @@ def main():
     if not os.path.isdir(lr_dir) or not os.path.isdir(hr_dir):
         raise ValueError("Both 'LR' and 'HR' subdirectories must exist under the data folder.")
 
-    lr_files = [f for f in os.listdir(lr_dir) if os.path.isfile(os.path.join(lr_dir, f))]
-    hr_files = [f for f in os.listdir(hr_dir) if os.path.isfile(os.path.join(hr_dir, f))]
+    lr_files = [f[3:] for f in os.listdir(lr_dir) if os.path.isfile(os.path.join(lr_dir, f))]
+    hr_files = [f[3:] for f in os.listdir(hr_dir) if os.path.isfile(os.path.join(hr_dir, f))]
 
     # Only keep the common files which represent image pairs.
     common_files = sorted(list(set(lr_files).intersection(hr_files)))
@@ -75,25 +80,32 @@ def main():
     print(f"Found {len(common_files)} image pairs for fine-tuning.")
 
     # Fine-tuning loop.
+    average_loss_per_epoch = []
     model.train()
     for epoch in range(1, args.epochs + 1):
         epoch_loss = 0.0
         for filename in common_files:
-            lr_path = os.path.join(lr_dir, filename)
-            hr_path = os.path.join(hr_dir, filename)
+            lr_path = os.path.join(lr_dir, "lr-" + filename)
+            hr_path = os.path.join(hr_dir, "hr-" + filename)
             lr_img = read_image_to_tensor(lr_path).to(device)
+            print(f"LR image range: min {lr_img.min().item()}, max: {lr_img.max().item()}")
             hr_img = read_image_to_tensor(hr_path).to(device)
 
             optimizer.zero_grad()
             # The network expects a list of tensors.
             output = model([lr_img])[0]
+
             loss = criterion(output, hr_img)
             loss.backward()
             optimizer.step()
+            
+            print(f"Trained on image: {filename} in epoch {epoch}")
 
             epoch_loss += loss.item()
         avg_loss = epoch_loss / len(common_files)
+        average_loss_per_epoch.append(avg_loss)
         print(f"Epoch [{epoch}/{args.epochs}] - Average Loss: {avg_loss:.4f}")
+        print(f"Average loss per epoch: {average_loss_per_epoch}")
 
     # Save the fine-tuned model.
     os.makedirs(args.output, exist_ok=True)
