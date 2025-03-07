@@ -90,7 +90,11 @@ if __name__ == '__main__':
     # For multi-task model, only load one branch using filter.
     # Optional values of filter_list: 'x2', 'x3', 'x4', 'g15', 'g25', 'g50', 'dr_L', 'dr_H'.
     # NOTE TO SELF disable cpu=True if training (probably)
-    load_model_filter_list(model, args.model, filter_list=[], cpu=True)
+
+    if torch.cuda.is_available():
+        load_model_filter_list(model, args.model, filter_list=[], cpu=False)
+    else:
+        load_model_filter_list(model, args.model, filter_list=[], cpu=True)
     # load_model_filter_list(model, args.model, filter_list=['x3', 'x4'])
 
 
