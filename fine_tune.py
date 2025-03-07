@@ -167,7 +167,10 @@ def main():
     model = model.to(device)
 
     # Load pre-trained weights.
-    load_model_filter_list(model, args.model, filter_list=[], cpu=True)
+    if torch.cuda.is_available():
+        load_model_filter_list(model, args.model, filter_list=[], cpu=False)
+    else:
+        load_model_filter_list(model, args.model, filter_list=[], cpu=True)
 
     # Prepare optimizer and loss function
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
