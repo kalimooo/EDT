@@ -7,6 +7,7 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
+import logging
 from pytorch_msssim import ssim
 
 from utils.common import scandir
@@ -134,6 +135,12 @@ def read_image_to_tensor(ipath):
     return img
 
 def main():
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(filename='training.log', encoding='utf-8', level=logging.DEBUG)
+
+    logger.info("---------- STARTING FINE TUNING ----------")
+    logger.info("------------------------------------------")
+
     parser = argparse.ArgumentParser(description="Fine-tune SR model")
     parser.add_argument('--config', type=str, required=True,
                         help="Path to the config file, e.g., configs/SRx4_EDTB_ImageNet200K.py")
@@ -228,7 +235,7 @@ def main():
         if not common_files:
             raise ValueError("No matching files found between LR and HR for a directory.")
 
-    print(f"Found {common_file_amount} image pairs for fine-tuning.")
+    logger.info(f"Found {common_file_amount} image pairs for fine-tuning.")
 
     # Fine-tuning loop.
     average_loss_per_epoch = []
@@ -257,20 +264,21 @@ def main():
 
                 files_gone_through += 1
                 if (files_gone_through % 100) == 0:
-                    print(f"Trained on {files_gone_through} out of {common_file_amount} images in epoch {epoch} out of {args.epoch} epochs")
+                    logger.info(f"Trained on {files_gone_through} out of {common_file_amount} images in epoch {epoch} out of {args.epoch} epochs")
                 
                 epoch_loss += loss.item()
 
-        avg_loss = epoch_loss / len(common_files)
+        avg_loss = round(epoch_loss / len(common_files), 6)
         average_loss_per_epoch.append(avg_loss)
-        print(f"Epoch [{epoch}/{args.epochs}] - Average Loss: {avg_loss:.4f}")
-        print(f"Average loss per epoch: {average_loss_per_epoch}")
+        logger.info(f"Epoch [{epoch}/{args.epochs}] - Average Loss: {avg_loss}")
+        logger.info(f"Average loss per epoch: {average_loss_per_epoch}\n")
 
     # Save the fine-tuned model.
     os.makedirs(args.output, exist_ok=True)
     save_path = os.path.join(args.output, "fine_tuned_model.pth")
     torch.save(model.state_dict(), save_path)
-    print(f"Fine-tuned model saved at: {save_path}")
+    logger.info("----------- FINE TUNING COMPLETE ----------")
+    logger.info(f"Fine-tuned model saved at: {save_path}")
 
 if __name__ == "__main__":
     main()
