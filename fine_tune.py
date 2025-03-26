@@ -139,8 +139,8 @@ def main():
                         help="Path to the config file, e.g., configs/SRx4_EDTB_ImageNet200K.py")
     parser.add_argument('--model', type=str, required=True,
                         help="Path to the pre-trained model, e.g., pretrained/SRx4_EDTB_ImageNet200K.pth")
-    parser.add_argument('--data', type=str, required=True,
-                        help="Path to folder containing 'LR' and 'HR' subdirectories")
+    parser.add_argument('-d', '--data', nargs='+' ,type=str, required=True,
+                        help="Path to folder(s) containing 'LR' and 'HR' subdirectories")
     parser.add_argument('--output', type=str, default="output",
                         help="Directory to save the fine-tuned model")
     parser.add_argument('--epochs', type=int, default=10,
@@ -185,47 +185,81 @@ def main():
         criterion = GLoss(scale_factor=args.scale).to(device)
 
     # Setup directories for LR and HR images.
-    lr_dir = os.path.join(args.data, "LR")
-    hr_dir = os.path.join(args.data, "HR")
-    if not os.path.isdir(lr_dir) or not os.path.isdir(hr_dir):
-        raise ValueError("Both 'LR' and 'HR' subdirectories must exist under the data folder.")
+    print(args.data)
 
-    lr_files = [f[3:] for f in os.listdir(lr_dir) if os.path.isfile(os.path.join(lr_dir, f))]
-    hr_files = [f[3:] for f in os.listdir(hr_dir) if os.path.isfile(os.path.join(hr_dir, f))]
+    lr_files = []
+    hr_files = []
+
+    for path in args.data:
+        lr_dir = os.path.join(path, "LR")
+        hr_dir = os.path.join(path, "HR")
+        lr_temp_list = []
+        hr_temp_list = []
+
+        if not os.path.isdir(lr_dir) or not os.path.isdir(hr_dir):
+            raise ValueError(f"Both 'LR' and 'HR' subdirectories must exist under the data folder. It does not for {path}")    
+
+        for file in os.listdir(lr_dir):
+            if not os.path.isfile(os.path.join(lr_dir, file)):
+                continue
+            lr_temp_list.append(file[3:])
+        
+        for file in os.listdir(hr_dir):
+            if not os.path.isfile(os.path.join(hr_dir, file)):
+                continue
+            hr_temp_list.append(file[3:])
+        
+        lr_files.append(lr_temp_list)
+        hr_files.append(hr_temp_list)
+
+    #lr_files = [f[3:] for f in os.listdir(lr_dir) if os.path.isfile(os.path.join(lr_dir, f))]
+    #hr_files = [f[3:] for f in os.listdir(hr_dir) if os.path.isfile(os.path.join(hr_dir, f))]
 
     # Only keep the common files which represent image pairs.
-    common_files = sorted(list(set(lr_files).intersection(hr_files)))
-    if not common_files:
-        raise ValueError("No matching files found between LR and HR directories.")
-    print(f"Found {len(common_files)} image pairs for fine-tuning.")
+
+    common_files_list = []
+    common_file_amount = 0
+
+    for i in range(len(lr_files)):
+        common_files = sorted(list(set(lr_files[i]).intersection(hr_files[i])))
+        common_files_list.append(common_files)
+        common_file_amount += len(common_files)
+
+        if not common_files:
+            raise ValueError("No matching files found between LR and HR for a directory.")
+
+    print(f"Found {common_file_amount} image pairs for fine-tuning.")
 
     # Fine-tuning loop.
     average_loss_per_epoch = []
     model.train()
     for epoch in range(1, args.epochs + 1):
         epoch_loss = 0.0
-        for filename in common_files:
-            lr_path = os.path.join(lr_dir, "lr-" + filename)
-            hr_path = os.path.join(hr_dir, "hr-" + filename)
-            lr_img = read_image_to_tensor(lr_path).to(device)
-            hr_img = read_image_to_tensor(hr_path).to(device)
 
-            optimizer.zero_grad()
-            # The network expects a list of tensors.
-            output = model([lr_img])[0]
+        files_gone_through = 0
 
-            # Check tensor range for debugging
-            print(f"LR range: [{lr_img.min().item()}, {lr_img.max().item()}]")
-            print(f"HR range: [{hr_img.min().item()}, {hr_img.max().item()}]")
-            print(f"Output range: [{output.min().item()}, {output.max().item()}]")
+        for file_list in common_files_list:
+            for filename in file_list:
+                lr_path = os.path.join(lr_dir, "lr-" + filename)
+                hr_path = os.path.join(hr_dir, "hr-" + filename)
+                lr_img = read_image_to_tensor(lr_path).to(device)
+                hr_img = read_image_to_tensor(hr_path).to(device)
 
-            loss = criterion(output, hr_img)
-            loss.backward()
-            optimizer.step()
-            
-            print(f"Trained on image: {filename} in epoch {epoch}")
+                optimizer.zero_grad()
+                # The network expects a list of tensors.
+                output = model([lr_img])[0]
 
-            epoch_loss += loss.item()
+                # Check tensor range for debugging
+
+                loss = criterion(output, hr_img)
+                loss.backward()
+                optimizer.step()
+
+                files_gone_through += 1
+                if (files_gone_through % 100) == 0:
+                    print(f"Trained on {files_gone_through} images in epoch {epoch}")
+                
+                epoch_loss += loss.item()
 
         avg_loss = epoch_loss / len(common_files)
         average_loss_per_epoch.append(avg_loss)

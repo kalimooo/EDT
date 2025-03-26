@@ -138,3 +138,6 @@ insect_brain
 training_data
 test_pretrained_model
 fine_tuned_models
+EDTvenv
+data
+slurm*
