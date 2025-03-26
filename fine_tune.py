@@ -257,7 +257,7 @@ def main():
 
                 files_gone_through += 1
                 if (files_gone_through % 100) == 0:
-                    print(f"Trained on {files_gone_through} images in epoch {epoch}")
+                    print(f"Trained on {files_gone_through} out of {common_file_amount} images in epoch {epoch} out of {args.epoch + 1} epochs")
                 
                 epoch_loss += loss.item()
 
