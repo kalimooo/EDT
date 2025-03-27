@@ -160,7 +160,7 @@ def main():
                         help="Loss function to use (l1, mse, ssim or g_loss)")
     args = parser.parse_args()
 
-    # Load configuration module
+    # Load configuration moduleEDT
     config_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'configs')
     config_name = os.path.basename(args.config).split('.')[0]
     module_reg = importlib.import_module(f'configs.{config_name}')
@@ -256,15 +256,13 @@ def main():
                 # The network expects a list of tensors.
                 output = model([lr_img])[0]
 
-                # Check tensor range for debugging
-
                 loss = criterion(output, hr_img)
                 loss.backward()
                 optimizer.step()
 
                 files_gone_through += 1
                 if (files_gone_through % 100) == 0:
-                    logger.info(f"Trained on {files_gone_through} out of {common_file_amount} images in epoch {epoch} out of {args.epoch} epochs")
+                    logger.info(f"Trained on {files_gone_through} out of {common_file_amount} images in epoch {epoch} out of {args.epochs} epochs")
                 
                 epoch_loss += loss.item()
 
@@ -273,12 +271,14 @@ def main():
         logger.info(f"Epoch [{epoch}/{args.epochs}] - Average Loss: {avg_loss}")
         logger.info(f"Average loss per epoch: {average_loss_per_epoch}\n")
 
+        os.makedirs(args.output, exist_ok=True)
+        save_path = os.path.join(args.output, f"fine_tuned_model_epoch{epoch}.pth")
+        torch.save(model.state_dict(), save_path)
+
+        logger.info(f"Fine-tuned model saved at: {save_path} after epoch {epoch}")
+
     # Save the fine-tuned model.
-    os.makedirs(args.output, exist_ok=True)
-    save_path = os.path.join(args.output, "fine_tuned_model.pth")
-    torch.save(model.state_dict(), save_path)
     logger.info("----------- FINE TUNING COMPLETE ----------")
-    logger.info(f"Fine-tuned model saved at: {save_path}")
 
 if __name__ == "__main__":
     main()
