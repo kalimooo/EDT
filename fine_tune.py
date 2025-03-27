@@ -138,6 +138,7 @@ def main():
     logger = logging.getLogger(__name__)
     logging.basicConfig(filename='training.log', encoding='utf-8', level=logging.DEBUG)
 
+    logger.info("------------------------------------------")
     logger.info("---------- STARTING FINE TUNING ----------")
     logger.info("------------------------------------------")
 
@@ -228,7 +229,7 @@ def main():
     common_file_amount = 0
 
     for i in range(len(lr_files)):
-        common_files = sorted(list(set(lr_files[i]).intersection(hr_files[i])))
+        common_files = list(set(lr_files[i]).intersection(hr_files[i]))
         common_files_list.append(common_files)
         common_file_amount += len(common_files)
 
@@ -266,7 +267,7 @@ def main():
                 
                 epoch_loss += loss.item()
 
-        avg_loss = round(epoch_loss / len(common_files), 6)
+        avg_loss = round(epoch_loss / common_file_amount, 6)
         average_loss_per_epoch.append(avg_loss)
         logger.info(f"Epoch [{epoch}/{args.epochs}] - Average Loss: {avg_loss}")
         logger.info(f"Average loss per epoch: {average_loss_per_epoch}\n")
