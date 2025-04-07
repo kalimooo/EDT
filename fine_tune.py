@@ -136,7 +136,7 @@ def read_image_to_tensor(ipath):
 
 def main():
     logger = logging.getLogger(__name__)
-    logging.basicConfig(filename='training.log', encoding='utf-8', level=logging.DEBUG)
+    logging.basicConfig(filename='train_gloss.log', encoding='utf-8', level=logging.DEBUG)
 
     logger.info("------------------------------------------")
     logger.info("---------- STARTING FINE TUNING ----------")
@@ -172,6 +172,7 @@ def main():
     # Build model (using edt.py)
     model = Network(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
     model = model.to(device)
 
     # Load pre-trained weights.
@@ -241,6 +242,8 @@ def main():
     # Fine-tuning loop.
     average_loss_per_epoch = []
     model.train()
+    
+    # TODO change back to start from 1
     for epoch in range(1, args.epochs + 1):
         epoch_loss = 0.0
 
@@ -250,19 +253,38 @@ def main():
             for filename in file_list:
                 lr_path = os.path.join(lr_dir, "lr-" + filename)
                 hr_path = os.path.join(hr_dir, "hr-" + filename)
-                lr_img = read_image_to_tensor(lr_path).to(device)
-                hr_img = read_image_to_tensor(hr_path).to(device)
-
+                try:
+                    lr_img = read_image_to_tensor(lr_path).to(device)
+                    hr_img = read_image_to_tensor(hr_path).to(device)
+                except Exception as e:
+                    print(lr_path)
+                    print(e)
+                    print(files_gone_through)
+                    logger.info(lr_path)
+                    logger.info(e)
+                    logger.info(files_gone_through)
+                    raise Exception
+                
                 optimizer.zero_grad()
                 # The network expects a list of tensors.
-                output = model([lr_img])[0]
+                try:
+                    output = model([lr_img])[0]
+                except Exception as e:
+                    print(lr_path)
+                    print(e)
+                    logger.info(lr_path)
+                    logger.info(e)
+                    print(files_gone_through)
+                    logger.info(files_gone_through)
+                    raise Exception
+
 
                 loss = criterion(output, hr_img)
                 loss.backward()
                 optimizer.step()
 
                 files_gone_through += 1
-                if (files_gone_through % 100) == 0:
+                if (files_gone_through % 1000) == 0:
                     logger.info(f"Trained on {files_gone_through} out of {common_file_amount} images in epoch {epoch} out of {args.epochs} epochs")
                 
                 epoch_loss += loss.item()
